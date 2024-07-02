@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note/To-Do List</title>
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <script src="jquery.min.js"></script>
+    <script src="knockout-min.js"></script>
+	
+	<!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://knockoutjs.com/downloads/knockout-3.5.1.js"></script> -->
+    <style>
+        .textarea {
+            height: 128px !important; /* Approx. 5 lines */
+            resize: none;  /* Disable resizing */
+        }
+		.btn-container-even {
+            display: flex;
+            justify-content: space-between;
+        }
+		
+		.btn-container-even > div {
+            width: 100%;
+        }
+		
+        .btn-container, .quick-copy-container {
+            width: 100%;
+        }
+        .list-group-container {
+            max-height: 300px; /* Adjust the height as needed */
+            overflow-y: auto; /* Enable vertical scrolling */
+            border: 1px solid #ddd; /* Optional: Adds a border around the list */
+            border-radius: 4px; /* Optional: Rounds the corners */
+        }
+		
+		.form-container {
+            display: flex;
+        }
+        .form-container textarea {
+            flex: 2;
+        }
+        .form-container .button-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            margin-left: 10px;
+        }
+        .form-container .button-column button {
+            flex: 1;
+        }
+		
+		.overflow-text {
+		  display: block;
+		  width: 1000px;
+		  overflow: hidden;
+		  white-space: nowrap;
+		  text-overflow: ellipsis;
+		}
+		
+        @media (max-width: 767px) {
+            .overflow-text {
+			  display: block;
+			  width: 300px;
+			  overflow: hidden;
+			  white-space: nowrap;
+			  text-overflow: ellipsis;
+			}
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5" data-bind="with: viewModel">
+		<div class="btn-container-even mb-3">
+			<div>
+				<button class="btn btn-secondary btn-block" data-bind="click: previousTask, enable: canNavigateBackward">←</button>
+			</div>
+			<div>
+				<button class="btn btn-secondary btn-block" data-bind="click: nextTask, enable: canNavigateForward">→</button>
+			</div>
+        </div>
+        <div class="form-container mb-3">
+            <textarea class="form-control textarea" id="new-task" placeholder="Add a new task" data-bind="value: newTask, valueUpdate: 'input'"></textarea>
+            <div class="button-column">
+                <button class="btn btn-primary btn-block" data-bind="click: addTask">Add</button>
+                <button class="btn btn-warning btn-block" data-bind="click: editTask, enable: editingTask">Update</button>
+            </div>
+        </div>
+		<div class="combobox-container">
+            <select class="form-control" data-bind="options: categories, value: selectedCategory"></select>
+        </div>
+		<div class="quick-copy-container mb-3" data-bind="foreach: buttons">
+			<button class="btn btn-info mt-2" data-bind="text: buttonText, click: $parent.copyAppend">Footer</button>
+		</div>
+		<div class="quick-copy-container mb-3">
+            <button class="btn btn-info btn-block" data-bind="click: copyAllTasks">Copy All</button>
+        </div>
+        <div class="mb-3">
+            <button class="btn btn-secondary btn-block" data-bind="click: toggleConvert">Toggle Convert</button>
+        </div>
+        <div class="convert-container mb-3" data-bind="visible: showConvert">
+            <textarea class="form-control textarea" id="convert-input" placeholder="Enter text to convert" data-bind="value: taskListConvertValue" ></textarea>
+            <button class="btn btn-primary btn-block mt-2" data-bind="click: convertText">Convert Tasks</button>
+			<button class="btn btn-primary btn-block mt-2" data-bind="click: convertAll">Convert All</button>
+        </div>
+		<div class="convert-container mb-3" data-bind="visible: showConvert">
+            <textarea class="form-control textarea" id="convert-buttons" placeholder="Enter text to convert buttons" data-bind="value: btnListConvertValue" ></textarea>
+            <button class="btn btn-primary btn-block mt-2" data-bind="click: convertButtons">Convert Buttons</button>
+        </div>
+        <div class="list-group-container">
+            <div class="list-group" data-bind="foreach: tasks">
+                <div class="list-group-item d-flex justify-content-between align-items-center" data-bind="click: $parent.populateTask">
+                    <span class="content-span overflow-text" data-bind="text: content"></span>
+                    <button class="btn btn-danger btn-sm ml-2" data-bind="click: $parent.removeTask">✖</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function Task(id, content) {
+            this.id = id;
+            this.content = ko.observable(content);
+        }
+
+        function AppViewModel() {
+            var self = this;
+            
+            self.newTask = ko.observable('');
+            self.tasks = ko.observableArray([]);
+            self.editingTask = ko.observable(false);
+            self.currentTaskId = ko.observable(null);
+            self.showConvert = ko.observable(false);
+			self.taskListConvertValue = ko.observable('');
+			self.btnListConvertValue = ko.observable('');
+
+			self.buttons = ko.observableArray([]);
+
+            self.taskIdIndex = ko.observable(0);
+			
+			self.categories = ko.observableArray(["No Category"]);
+            self.selectedCategory = ko.observable("No Category");
+            self.categoryMap = {};
+			
+			self.selectedCategory.subscribe(function(newCategory) {
+                if (newCategory) {
+					if (self.categoryMap[newCategory] === undefined) {
+						self.categoryMap[newCategory] = [];
+					}
+                    self.tasks(self.categoryMap[newCategory]);
+                    self.editingTask(false);
+                    self.currentTaskId(null);
+                    self.taskIdIndex(self.tasks().length > 0 ? self.tasks()[self.tasks().length - 1].id + 1 : 0);
+                }
+            });
+
+            self.addTask = function() {
+                if (self.newTask()) {
+                    var taskList = self.categoryMap[self.selectedCategory()] || [];
+                    taskList.push(new Task(self.taskIdIndex(), self.newTask()));
+                    self.categoryMap[self.selectedCategory()] = taskList;
+                    self.tasks(taskList);
+                    self.newTask(''); // Clear the input
+                    self.taskIdIndex(self.taskIdIndex() + 1); // Increment the ID
+                }
+            };
+
+            self.editTask = function() {
+                var id = self.currentTaskId();
+                if (id !== null && self.newTask()) {
+                    var taskList = self.categoryMap[self.selectedCategory()] || [];
+                    var task = ko.utils.arrayFirst(taskList, function(item) {
+                        return item.id === id;
+                    });
+                    if (task) {
+                        task.content(self.newTask());
+                        self.newTask('');
+                        self.editingTask(false);
+                        self.currentTaskId(null);
+                    }
+                    self.tasks(taskList);
+                }
+            };
+
+            self.populateTask = function(task) {
+                self.newTask(task.content());
+                self.currentTaskId(task.id);
+                self.editingTask(true);
+                navigator.clipboard.writeText(task.content());
+            };
+
+            self.removeTask = function(task) {
+                var taskList = self.categoryMap[self.selectedCategory()] || [];
+                taskList = taskList.filter(function(item) {
+                    return item.id !== task.id;
+                });
+                self.categoryMap[self.selectedCategory()] = taskList;
+                self.tasks(taskList);
+                if (self.currentTaskId() === task.id) {
+                    self.newTask(''); // Clear the input
+                    self.editingTask(false);
+                    self.currentTaskId(null);
+                }
+            };
+
+            self.toggleConvert = function() {
+                self.showConvert(!self.showConvert());
+            };
+
+            self.convertText = function() {
+                var inputText = self.taskListConvertValue();
+                self.doConvertTask(inputText)
+            };
+			
+			self.doConvertTask = function(text) {
+				if (text) {
+                    self.tasks([]);
+                    self.taskIdIndex(0);
+
+                    var categories = text.split(/===\s*/).filter(Boolean);
+                    var taskMap = {};
+                    categories.forEach(function(categorySection) {
+                        var lines = categorySection.split('\n');
+                        var categoryName = lines.shift().trim();
+                        if (!taskMap[categoryName]) {
+                            taskMap[categoryName] = [];
+                        }
+                        lines.join('\n').split(/\n{3,}/).forEach(function(line) {
+                            if (line.trim()) {
+                                taskMap[categoryName].push(new Task(self.taskIdIndex(), line.trim()));
+                                self.taskIdIndex(self.taskIdIndex() + 1);
+                            }
+                        });
+                    });
+
+					self.categoryMap = taskMap;
+                    self.categories(Object.keys(taskMap));
+                    var firstCategory = Object.keys(taskMap)[0] || "No Category";
+                    self.selectedCategory(firstCategory);
+                }
+			}
+			
+			self.convertButtons = function() {
+                var inputText = self.btnListConvertValue();
+                self.doConvertButtons(inputText);
+            };
+			
+			self.doConvertButtons = function(text) {
+                if (text) {
+                    self.buttons([]);
+					
+					var resArray = [];
+					
+                    var parts = text.split('\n');
+                    parts.forEach(function(part) {
+                        if (part.trim()) {
+							var buttonObj = part.split(';');
+                            resArray.push({ buttonText: buttonObj[0], prependContent: buttonObj[1] });
+                        }
+                    });
+					
+					self.buttons(resArray);
+                }
+            };
+			
+			self.convertAll = function() {
+				var inputText = self.taskListConvertValue();
+                if (inputText) {
+                    
+					var taskAndButtons = inputText.split(/;;;\s*/).filter(Boolean);
+					if(taskAndButtons.length != 2) {
+						return;
+					}
+					
+					self.doConvertButtons(taskAndButtons[0].trim());
+					self.doConvertTask(taskAndButtons[1].trim());
+                }
+			}
+			
+			self.canNavigateBackward = ko.pureComputed(function() {
+				return self.tasks().length > 0 && self.currentTaskId() !== null && self.tasks.indexOf(self.getTaskById(self.currentTaskId())) > 0;
+			});
+
+			self.canNavigateForward = ko.pureComputed(function() {
+				return self.tasks().length > 0 && self.currentTaskId() !== null && self.tasks.indexOf(self.getTaskById(self.currentTaskId())) < self.tasks().length - 1;
+			});
+
+			self.previousTask = function() {
+				if (self.canNavigateBackward()) {
+					var currentIndex = self.tasks.indexOf(self.getTaskById(self.currentTaskId()));
+					var previousTask = self.tasks()[currentIndex - 1];
+					if (previousTask) {
+						self.currentTaskId(previousTask.id);
+						self.newTask(previousTask.content());
+					}
+				}
+			};
+
+			self.nextTask = function() {
+				if (self.canNavigateForward()) {
+					var currentIndex = self.tasks.indexOf(self.getTaskById(self.currentTaskId()));
+					var nextTask = self.tasks()[currentIndex + 1];
+					if (nextTask) {
+						self.currentTaskId(nextTask.id);
+						self.newTask(nextTask.content());
+					}
+				}
+			};
+
+			self.getTaskById = function(id) {
+				return ko.utils.arrayFirst(self.tasks(), function(task) {
+					return task.id === id;
+				});
+			};
+			
+			self.copyAppend = function(button) {
+				var text = button.prependContent;
+				var fullText = text + " " + self.newTask();
+				navigator.clipboard.writeText(fullText);
+			};
+			
+			self.copyAllTasks = function() {
+				var fullText = self.mapToText();
+				navigator.clipboard.writeText(fullText);
+			};
+			
+			self.mapToText =  function() {
+				let result = '';
+				
+				if (self.buttons().length > 0) {
+					self.buttons().forEach((button, buttonIdx) => {
+						result += button.buttonText + ";" + button.prependContent + "\n";
+					});
+					result += ";;;\n"
+				}
+				
+				self.categories().forEach((category, index) => {
+					result += `===${category}\n`; 
+					self.categoryMap[category].forEach(task => {
+						result += `${task.content()}\n\n\n`;
+					});
+				});
+
+				return result.trim();
+			}
+        }
+
+        var viewModel = new AppViewModel();
+        ko.applyBindings({ viewModel: viewModel });
+    </script>
+</body>
+</html>
