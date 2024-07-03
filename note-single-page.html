@@ -85,6 +85,7 @@
             <div class="button-column">
                 <button class="btn btn-primary btn-block" data-bind="click: addTask">Add</button>
                 <button class="btn btn-warning btn-block" data-bind="click: editTask, enable: editingTask">Update</button>
+				<button class="btn btn-warning btn-block" data-bind="click: clearTask">Clear</button>
             </div>
         </div>
 		<div class="combobox-container">
@@ -136,7 +137,7 @@
 			self.btnListConvertValue = ko.observable('');
 
 			self.buttons = ko.observableArray([]);
-
+			self.replacements = ko.observableArray([]);
             self.taskIdIndex = ko.observable(0);
 			
 			self.categories = ko.observableArray(["No Category"]);
@@ -182,6 +183,10 @@
                     self.tasks(taskList);
                 }
             };
+			
+			self.clearTask = function() {
+				self.newTask('');
+			}
 
             self.populateTask = function(task) {
                 self.newTask(task.content());
@@ -264,11 +269,37 @@
                 }
             };
 			
+			self.doConvertShortcut = function(text) {
+                if (text) {
+                    self.replacements([]);
+					
+					var resArray = [];
+					
+                    var parts = text.split('\n');
+                    parts.forEach(function(part) {
+                        if (part.trim()) {
+							var buttonObj = part.split(';');
+                            resArray.push({ shortcutText: buttonObj[0], replaceText: buttonObj[1] });
+                        }
+                    });
+					
+					self.replacements(resArray);
+                }
+            };
+			
 			self.convertAll = function() {
 				var inputText = self.taskListConvertValue();
                 if (inputText) {
                     
-					var taskAndButtons = inputText.split(/;;;\s*/).filter(Boolean);
+					var shortCutAndRest = inputText.split(/@@@\s*/).filter(Boolean);
+					
+					if(shortCutAndRest.length != 2) {
+						return;
+					}
+					
+					self.doConvertShortcut(shortCutAndRest[0]);
+					
+					var taskAndButtons = shortCutAndRest[1].split(/;;;\s*/).filter(Boolean);
 					if(taskAndButtons.length != 2) {
 						return;
 					}
@@ -317,9 +348,24 @@
 			self.copyAppend = function(button) {
 				var text = button.prependContent;
 				var fullText = text + " " + self.newTask();
-				navigator.clipboard.writeText(fullText);
+				var pasteText = self.replaceShortcuts(fullText);
+				navigator.clipboard.writeText(pasteText);
 			};
 			
+			self.replaceShortcuts = function(input) {
+				let output = input;
+				
+				// Iterate through each replacement pair
+				self.replacements().forEach(replacement => {
+					// Create a regular expression to match the shortcut surrounded by spaces
+					const regex = new RegExp(`\\s${replacement.shortcutText}\\s`, 'g');
+					// Replace the matches with the replacement text
+					output = output.replace(regex, ` ${replacement.replaceText} `);
+				});
+
+				return output;
+			}
+						
 			self.copyAllTasks = function() {
 				var fullText = self.mapToText();
 				navigator.clipboard.writeText(fullText);
