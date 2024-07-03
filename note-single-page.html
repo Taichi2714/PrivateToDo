@@ -294,6 +294,13 @@
 					var shortCutAndRest = inputText.split(/@@@\s*/).filter(Boolean);
 					
 					if(shortCutAndRest.length != 2) {
+						var taskAndButtons = shortCutAndRest[0].split(/;;;\s*/).filter(Boolean);
+						if(taskAndButtons.length != 2) {
+							return;
+						}
+						
+						self.doConvertButtons(taskAndButtons[0].trim());
+						self.doConvertTask(taskAndButtons[1].trim());
 						return;
 					}
 					
