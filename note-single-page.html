@@ -243,6 +243,7 @@
                     self.categories(Object.keys(taskMap));
                     var firstCategory = Object.keys(taskMap)[0] || "No Category";
                     self.selectedCategory(firstCategory);
+					self.selectedCategory.valueHasMutated();
                 }
 			}
 			
