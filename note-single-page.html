@@ -29,7 +29,7 @@
             width: 100%;
         }
         .list-group-container {
-            max-height: 300px; /* Adjust the height as needed */
+            max-height: 250px; /* Adjust the height as needed */
             overflow-y: auto; /* Enable vertical scrolling */
             border: 1px solid #ddd; /* Optional: Adds a border around the list */
             border-radius: 4px; /* Optional: Rounds the corners */
@@ -68,6 +68,14 @@
 			  text-overflow: ellipsis;
 			}
         }
+		
+		.gold {
+			color: gold;
+		}
+		
+		.white {
+			color: white;
+		}
     </style>
 </head>
 <body>
@@ -94,11 +102,16 @@
 		<div class="quick-copy-container mb-3" data-bind="foreach: buttons">
 			<button class="btn btn-info mt-2" data-bind="text: buttonText, click: $parent.copyAppend">Footer</button>
 		</div>
-		<div class="quick-copy-container mb-3">
+		
+        <div class="mb-3">
+            <button class="btn btn-secondary btn-block" data-bind="click: toggleConvert">Toggle Edit</button>
+        </div>
+		<div class="quick-copy-container mb-3" data-bind="visible: showConvert">
             <button class="btn btn-info btn-block" data-bind="click: copyAllTasks">Copy All</button>
         </div>
-        <div class="mb-3">
-            <button class="btn btn-secondary btn-block" data-bind="click: toggleConvert">Toggle Convert</button>
+		<div class="convert-container mb-3" data-bind="visible: showConvert">
+            <input type="text" class="form-control" data-bind="value: categoryName"></input>
+			<button class="btn btn-primary btn-block mt-2" data-bind="click: addCategory">Add Category</button>
         </div>
         <div class="convert-container mb-3" data-bind="visible: showConvert">
             <textarea class="form-control textarea" id="convert-input" placeholder="Enter text to convert" data-bind="value: taskListConvertValue" ></textarea>
@@ -109,14 +122,20 @@
             <textarea class="form-control textarea" id="convert-buttons" placeholder="Enter text to convert buttons" data-bind="value: btnListConvertValue" ></textarea>
             <button class="btn btn-primary btn-block mt-2" data-bind="click: convertButtons">Convert Buttons</button>
         </div>
-        <div class="list-group-container">
-            <div class="list-group" data-bind="foreach: tasks">
-                <div class="list-group-item d-flex justify-content-between align-items-center" data-bind="click: $parent.populateTask">
-                    <span class="content-span overflow-text" data-bind="text: content"></span>
-                    <button class="btn btn-danger btn-sm ml-2" data-bind="click: $parent.removeTask">✖</button>
-                </div>
-            </div>
-        </div>
+		<div class="form-container">
+			<div class="list-group-container ">
+				<div class="list-group" data-bind="foreach: tasks">
+					<div class="list-group-item d-flex justify-content-between align-items-center" data-bind="click: $parent.populateTask">
+						<span class="content-span overflow-text" data-bind="text: content"></span>
+						<button class="btn btn-danger btn-sm ml-2 gold" data-bind="click: $parent.removeTask">✖</button>
+					</div>
+				</div>
+			</div>
+			<div class="button-column">
+				<button class="btn btn-primary btn-block white" data-bind="click: moveItemUp">↑</button>
+				<button class="btn btn-primary btn-block white" data-bind="click: moveItemDown">↓</button>
+			</div>
+		</div>
     </div>
 
     <script>
@@ -129,6 +148,7 @@
             var self = this;
             
             self.newTask = ko.observable('');
+			self.categoryName = ko.observable('');
             self.tasks = ko.observableArray([]);
             self.editingTask = ko.observable(false);
             self.currentTaskId = ko.observable(null);
@@ -155,15 +175,27 @@
                     self.taskIdIndex(self.tasks().length > 0 ? self.tasks()[self.tasks().length - 1].id + 1 : 0);
                 }
             });
+			
+			self.addCategory = function() {
+                if (self.categoryName()) {
+                    self.categories.push(self.categoryName());
+                }
+            };
 
             self.addTask = function() {
                 if (self.newTask()) {
                     var taskList = self.categoryMap[self.selectedCategory()] || [];
+					self.buttons().forEach(function(button) {
+						if(self.newTask().startsWith(button.prependContent)) {
+							self.newTask(self.newTask().replace(button.prependContent, ""));
+						}
+					});
+					
                     taskList.push(new Task(self.taskIdIndex(), self.newTask()));
                     self.categoryMap[self.selectedCategory()] = taskList;
                     self.tasks(taskList);
-                    self.newTask(''); // Clear the input
-                    self.taskIdIndex(self.taskIdIndex() + 1); // Increment the ID
+                    self.newTask('');
+                    self.taskIdIndex(self.taskIdIndex() + 1);
                 }
             };
 
@@ -203,7 +235,7 @@
                 self.categoryMap[self.selectedCategory()] = taskList;
                 self.tasks(taskList);
                 if (self.currentTaskId() === task.id) {
-                    self.newTask(''); // Clear the input
+                    self.newTask('');
                     self.editingTask(false);
                     self.currentTaskId(null);
                 }
@@ -382,6 +414,13 @@
 			self.mapToText =  function() {
 				let result = '';
 				
+				if (self.replacements().length > 0) {
+					self.replacements().forEach((repl, idx) => {
+						result += repl.shortcutText + ";" + repl.replaceText + "\n";
+					});
+					result += "@@@\n"
+				}
+				
 				if (self.buttons().length > 0) {
 					self.buttons().forEach((button, buttonIdx) => {
 						result += button.buttonText + ";" + button.prependContent + "\n";
@@ -397,6 +436,48 @@
 				});
 
 				return result.trim();
+			}
+			
+			self.moveItemUp = function() {
+				var index = self.getCurrentSelectedIndex();
+				if (index === 0) {
+					// If the selected item is already at the start, do nothing
+					return;
+				}
+
+				// Swap the selected item with the item before it
+				var temp = self.tasks()[index - 1];
+				self.tasks()[index - 1] = self.tasks()[index];
+				self.tasks()[index] = temp;
+
+				// Update the observable array
+				self.tasks.valueHasMutated();
+			}
+			
+			self.moveItemDown = function() {
+				
+			
+				var index = self.getCurrentSelectedIndex();
+				if (index === self.tasks().length - 1) {
+					// If the selected item is already at the end, do nothing
+					return;
+				}
+
+				// Swap the selected item with the item after it
+				var temp = self.tasks()[index + 1];
+				self.tasks()[index + 1] = self.tasks()[index];
+				self.tasks()[index] = temp;
+
+				// Update the observable array
+				self.tasks.valueHasMutated();
+			}
+			
+			self.getCurrentSelectedIndex = function() {
+				for(var i = 0; i < self.tasks().length; i++) {
+					if(self.tasks()[i].id == self.currentTaskId()) {
+						return i;
+					}
+				}
 			}
         }
 
