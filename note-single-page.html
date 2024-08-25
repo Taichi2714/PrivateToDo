@@ -364,6 +364,7 @@
 					if (previousTask) {
 						self.currentTaskId(previousTask.id);
 						self.newTask(previousTask.content());
+						navigator.clipboard.writeText(self.newTask());
 					}
 				}
 			};
@@ -375,6 +376,7 @@
 					if (nextTask) {
 						self.currentTaskId(nextTask.id);
 						self.newTask(nextTask.content());
+						navigator.clipboard.writeText(self.newTask());
 					}
 				}
 			};
