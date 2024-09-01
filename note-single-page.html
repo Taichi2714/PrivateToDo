@@ -93,6 +93,7 @@
             <div class="button-column">
                 <button class="btn btn-primary btn-block" data-bind="click: addTask">Add</button>
                 <button class="btn btn-warning btn-block" data-bind="click: editTask, enable: editingTask">Update</button>
+				<button class="btn btn-warning btn-block" data-bind="click: insertTaskAfterCurrent, enable: editingTask">AddAfter</button>
 				<button class="btn btn-warning btn-block" data-bind="click: clearTask">Clear</button>
             </div>
         </div>
@@ -481,6 +482,31 @@
 					}
 				}
 			}
+			
+			self.rearrangeTaskIds = function(taskList) {
+				taskList.forEach(function(task, index) {
+					task.id = index;
+				});
+				self.taskIdIndex(taskList.length);  // Update the taskIdIndex to reflect the new size
+			};
+			
+			self.insertTaskAfterCurrent = function() {
+				if (self.newTask()) {
+					var taskList = self.categoryMap[self.selectedCategory()] || [];
+					var currentIndex = self.getCurrentSelectedIndex();
+
+					// Insert new task right after the current task
+					taskList.splice(currentIndex + 1, 0, new Task(null, self.newTask()));
+
+					// Reassign IDs to ensure continuity
+					self.rearrangeTaskIds(taskList);
+
+					// Update the observable array and clear the input field
+					self.tasks(taskList);
+					self.newTask('');
+					self.editingTask(false);
+				}
+			};
         }
 
         var viewModel = new AppViewModel();
