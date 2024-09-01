@@ -24,7 +24,11 @@
 		.btn-container-even > div {
             width: 100%;
         }
-		
+
+		.button-column > button {
+			line-height: 0.7em;
+		}
+
         .btn-container, .quick-copy-container {
             width: 100%;
         }
@@ -92,8 +96,8 @@
             <textarea class="form-control textarea" id="new-task" placeholder="Add a new task" data-bind="value: newTask, valueUpdate: 'input'"></textarea>
             <div class="button-column">
                 <button class="btn btn-primary btn-block" data-bind="click: addTask">Add</button>
-                <button class="btn btn-warning btn-block" data-bind="click: editTask, enable: editingTask">Update</button>
 				<button class="btn btn-warning btn-block" data-bind="click: insertTaskAfterCurrent, enable: editingTask">AddAfter</button>
+                <button class="btn btn-warning btn-block" data-bind="click: editTask, enable: editingTask">Update</button>
 				<button class="btn btn-warning btn-block" data-bind="click: clearTask">Clear</button>
             </div>
         </div>
