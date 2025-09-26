@@ -7,6 +7,7 @@
   <style>
     :root{
       --ok:#d1fadf; --pending:#ffe3e3; --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --focus:#2563eb;
+      --table-min: 1000px; /* ensures horizontal scroll area on phones */
     }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Noto Sans,"Apple Color Emoji","Segoe UI Emoji"}
     header{padding:16px 20px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10}
@@ -32,6 +33,11 @@
     .group{background:#fff;border:1px solid var(--border);border-radius:12px;margin-top:16px;overflow:hidden}
     .group-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
     .group-title{font-weight:700}
+
+    /* Horizontal scroll wrapper for table on phones */
+    .group-table{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+    .group-inner{min-width:var(--table-min);} /* keeps all columns visible via scroll */
+
     .rows{padding:10px}
     .row{display:grid;grid-template-columns:200px 90px repeat(8,1fr);gap:8px;align-items:center;margin:8px 0}
     @media (max-width:1000px){.row{grid-template-columns:160px 70px repeat(8,1fr)}}
@@ -51,7 +57,8 @@
 
     /* Input + increment button wrapper */
     .num-cell{display:flex;gap:6px;align-items:center}
-    .inc-btn{
+    /* Note: dropped min-width per your request. Kept .inc-btn as alias. */
+    .inc-button, .inc-btn{
       border:1px solid var(--border);
       background:#fff;
       padding:0 12px;
@@ -64,9 +71,9 @@
       user-select:none;
       touch-action:manipulation;
     }
-    .inc-btn:active{transform:translateY(1px)}
+    .inc-button:active, .inc-btn:active{transform:translateY(1px)}
     @media (pointer:coarse){
-      .inc-btn{height:40px;min-width:44px;line-height:40px}
+      .inc-button, .inc-btn{height:40px;line-height:40px}
     }
   </style>
 </head>
@@ -139,47 +146,52 @@ v2"></textarea>
           <div><button data-bind="click: $parent.addItemInGroup">Add item in this group</button></div>
         </div>
 
-        <!-- Table headers -->
-        <div class="table-headers" data-bind="foreach: paddedHeaders">
-          <div class="table-header" data-bind="text: $data"></div>
-        </div>
+        <!-- Horizontal scrollable table area -->
+        <div class="group-table">
+          <div class="group-inner">
+            <!-- Table headers -->
+            <div class="table-headers" data-bind="foreach: paddedHeaders">
+              <div class="table-header" data-bind="text: $data"></div>
+            </div>
 
-        <!-- Rows -->
-        <div class="rows" data-bind="foreach: items">
-          <div class="row">
-            <!-- name -->
-            <input class="name"
-                   type="text"
-                   maxlength="20"
-                   data-bind="value: cells()[0].value,
-                              css: cells()[0].cssClass,
-                              valueUpdate: 'input'"/>
+            <!-- Rows -->
+            <div class="rows" data-bind="foreach: items">
+              <div class="row">
+                <!-- name -->
+                <input class="name"
+                       type="text"
+                       maxlength="20"
+                       data-bind="value: cells()[0].value,
+                                  css: cells()[0].cssClass,
+                                  valueUpdate: 'input'"/>
 
-            <!-- groupId -->
-            <input type="text"
-                   maxlength="20"
-                   data-bind="value: cells()[1].value,
-                              css: cells()[1].cssClass,
-                              event:{ change: onGroupChange }"/>
-
-            <!-- data cells 2..9 (each with + button) -->
-            <!-- ko foreach: { data: cells().slice(2), as: 'c' } -->
-              <div class="num-cell">
+                <!-- groupId -->
                 <input type="text"
-                       inputmode="numeric"
-                       maxlength="4"
-                       data-bind="value: c.value,
-                                  css: c.cssClass,
-                                  valueUpdate: 'input',
-                                  event:{ input: $parent.sanitizeNumeric }"/>
-                <div class="inc-btn"
-                     role="button"
-                     tabindex="0"
-                     aria-label="Increase by 1"
-                     data-bind="click: function(){ $parent.incCell(c) },
-                                event: { keydown: function(_,e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); $parent.incCell(c);} } }">+</div>
+                       maxlength="20"
+                       data-bind="value: cells()[1].value,
+                                  css: cells()[1].cssClass,
+                                  event:{ change: onGroupChange }"/>
+
+                <!-- data cells 2..9 (each with + button) -->
+                <!-- ko foreach: { data: cells().slice(2), as: 'c' } -->
+                  <div class="num-cell">
+                    <input type="text"
+                           inputmode="numeric"
+                           maxlength="4"
+                           data-bind="value: c.value,
+                                      css: c.cssClass,
+                                      valueUpdate: 'input',
+                                      event:{ input: $parent.sanitizeNumeric }"/>
+                    <div class="inc-button"
+                         role="button"
+                         tabindex="0"
+                         aria-label="Increase by 1"
+                         data-bind="click: function(){ $parent.incCell(c) },
+                                    event: { keydown: function(_,e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); $parent.incCell(c);} } }">+</div>
+                  </div>
+                <!-- /ko -->
               </div>
-            <!-- /ko -->
+            </div>
           </div>
         </div>
       </section>
@@ -188,7 +200,7 @@ v2"></textarea>
     <p class="footer-note">Tip: change the group id (2nd textbox) to move an item to another group.</p>
   </div>
 
-  <script src="./knockout-min.js"></script>
+  <script src="./knockout.js"></script>
   <script>
     (function(){
       const MAX_COL = 10;
@@ -262,36 +274,12 @@ v2"></textarea>
         const rows = [];
         for (const raw of (text||"").split(/\r?\n/)){
           if (!trim(raw)) continue;
-          const parts = specialSplit(trim(raw));
+          const parts = raw.split(",").map(s=>trim(s));
           while (parts.length < MAX_COL) parts.push("");
           rows.push(parts.slice(0, MAX_COL));
         }
         return rows;
       }
-	  
-	  function specialSplit(text) {
-		  const parts = text.split(",");
-
-		  let result = [];
-		  if (parts.length === 3) {
-			// Case: exactly 3 elements → pad last one to 16 chars, split by 2
-			const fixed = parts[2].padEnd(16, "0").slice(0, 16); // ensure length 16
-			const subparts = [];
-			for (let i = 0; i < fixed.length; i += 2) {
-			  subparts.push(fixed.slice(i, i + 2));
-			}
-			result = [parts[0], parts[1], ...subparts];
-		  } else {
-			// Case: >3 elements → split normally, then pad with "0" until 10
-			result = [...parts];
-			while (result.length < MAX_COL) {
-			  result.push("");
-			}
-		  }
-
-		  // trim each element
-		  return result.map(x => x.trim());
-	  }
 
       function splitSections(text){
         const chunks = (text||"").trim().split("※※※").filter(Boolean).map(s=>s.trim());
@@ -323,7 +311,7 @@ v2"></textarea>
         self.incCell = function(cell){
           const raw = cell.value();
           let n = Number.isFinite(+raw) ? (+raw|0) : 0;
-          n = clampInt(n + 1, -999, 999); // keep within 3-digit (with optional minus)
+          n = clampInt(n + 1, -999, 999);
           cell.value(String(n));
           self.evaluate();
         };
@@ -347,7 +335,7 @@ v2"></textarea>
           self.vm.moveItemToGroup(self, target);
         };
 
-        // For input event mapping
+        // Map DOM input to cell index
         self.indexOfDomInput = function(inputEl){
           const row = inputEl.closest(".row");
           if (!row) return -1;
@@ -355,14 +343,13 @@ v2"></textarea>
           return inputs.indexOf(inputEl);
         };
 
-        // Re-evaluate step classes
+        // Evaluate condition steps
         self.evaluate = function(){
           const gid = String(self.cells()[1].value() || "");
           const steps = self.vm.conditionSteps.get(gid) || [];
           const hdrInfo = self.vm.groupHeaders.get(gid) || { headers: [] };
           const headers = hdrInfo.headers || [];
 
-          // clear
           self.cells().forEach(c => c.cssClass(""));
 
           for (let s = 0; s < steps.length; s++){
@@ -508,6 +495,12 @@ v2"></textarea>
             it.evaluate();
           });
         };
+
+        // Demo seed
+        self.condInput(['===A','2 > 9','3 = 12','','===B','2 >= 5','4 <= 7',].join('\n'));
+        self.headerInput(['===A-Weapons','Name','Group','Col2','Col3','Col4','Col5','Col6','Col7','Col8','===B-Armor','Name','Group','Col2','Col3','Col4','Col5','Col6','Col7','Col8'].join('\n'));
+        self.itemsInput(['Sword,A,10,12,0,0,0,0,0,0','Shield,B,5,0,7,0,0,0,0,0'].join('\n'));
+        self.loadAll();
       }
 
       window.vm = new AppVM();
