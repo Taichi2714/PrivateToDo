@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Condition-Step Checklist (Knockout) + Increment Buttons</title>
+  <style>
+    :root{
+      --ok:#d1fadf; --pending:#ffe3e3; --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --focus:#2563eb;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Noto Sans,"Apple Color Emoji","Segoe UI Emoji"}
+    header{padding:16px 20px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10}
+    header h1{margin:0;font-size:18px}
+    .container{padding:16px 20px;max-width:1200px;margin:0 auto}
+    details.panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    details.panel>summary{cursor:pointer;list-style:none;padding:14px 16px;user-select:none;display:flex;align-items:center;gap:10px;font-weight:600}
+    details.panel>summary::-webkit-details-marker{display:none}
+    details.panel[open]>summary{border-bottom:1px solid var(--border)}
+    .summary-badge{font-size:12px;color:#fff;background:var(--focus);padding:2px 8px;border-radius:999px}
+    .panel-body{display:grid;gap:12px;padding:16px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width:900px){.grid-2{grid-template-columns:1fr}}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-weight:600}
+    .field small{color:var(--muted)}
+    textarea{min-height:120px;resize:vertical;border:1px solid var(--border);border-radius:10px;padding:10px;font:inherit}
+    textarea::placeholder{color:#9ca3af}
+    .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+    button{appearance:none;border:1px solid var(--border);background:#fff;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    button.primary{background:var(--focus);border-color:var(--focus);color:#fff}
+    button:focus{outline:3px solid rgba(37,99,235,.25)}
+    .group{background:#fff;border:1px solid var(--border);border-radius:12px;margin-top:16px;overflow:hidden}
+    .group-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .group-title{font-weight:700}
+    .rows{padding:10px}
+    .row{display:grid;grid-template-columns:200px 90px repeat(8,1fr);gap:8px;align-items:center;margin:8px 0}
+    @media (max-width:1000px){.row{grid-template-columns:160px 70px repeat(8,1fr)}}
+    @media (max-width:800px){.row{grid-template-columns:140px 60px repeat(8,1fr)}}
+    .row input{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:inherit;background:#fff}
+    .row input:focus{outline:3px solid rgba(37,99,235,.25)}
+    .row input.name{max-width:100%}
+    .row input.ok{background:var(--ok)}
+    .row input.pending{background:var(--pending)}
+    .empty-note{padding:24px;color:var(--muted)}
+    .footer-note{margin-top:10px;color:var(--muted)}
+    code{background:#f1f5f9;padding:2px 6px;border-radius:6px}
+    .table-headers{display:grid;grid-template-columns:200px 90px repeat(8,1fr);gap:8px;background:#f9fafb;padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600}
+    .table-headers .table-header{text-align:center;font-size:13px;padding:4px 6px;border-radius:6px;background:#e5e7eb}
+    .table-headers .table-header:nth-child(1){width:190px;justify-self:start;text-align:center}
+    .table-headers .table-header:nth-child(2){width:80px}
+
+    /* Input + increment button wrapper */
+    .num-cell{display:flex;gap:6px;align-items:center}
+    .inc-btn{
+      border:1px solid var(--border);
+      background:#fff;
+      padding:0 12px;
+      border-radius:8px;
+      height:36px;
+      font-weight:800;
+      line-height:36px;
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+      touch-action:manipulation;
+    }
+    .inc-btn:active{transform:translateY(1px)}
+    @media (pointer:coarse){
+      .inc-btn{height:40px;min-width:44px;line-height:40px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Condition-Step Checklist (10-Textbox Items)</h1>
+  </header>
+
+  <div class="container" data-bind="with: vm">
+    <details class="panel" open>
+      <summary>
+        <span>Setup panel</span>
+        <span class="summary-badge">toggle</span>
+      </summary>
+      <div class="panel-body">
+        <div class="grid-2">
+          <div class="field">
+            <label for="condInput">Condition steps</label>
+            <textarea id="condInput" data-bind="value: condInput" placeholder="===A
+2 > 9
+3 = 12
+
+===B
+2 >= 5
+4 <= 7"></textarea>
+            <small>Rules per line: <code>{index or header} {op} {number}</code>. Sections start with <code>===&lt;groupId&gt;</code>.</small>
+          </div>
+
+          <div class="field">
+            <label for="headerInput">Group headers</label>
+            <textarea id="headerInput" data-bind="value: headerInput" placeholder="===A-Weapons
+Name
+Group
+v2
+v3
+…
+===B-Armor
+Name
+Group
+v2"></textarea>
+            <small>After <code>===&lt;groupId&gt;-&lt;title&gt;</code>, list 10 column headers (or fewer).</small>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="itemsInput">Items (CSV, 10 values per line)</label>
+          <textarea id="itemsInput" data-bind="value: itemsInput" placeholder="Sword,A,10,12,0,0,0,0,0,0"></textarea>
+          <small>Columns: name, groupId, v2..v9 (8 numeric fields).</small>
+        </div>
+
+        <div class="actions">
+          <button class="primary" data-bind="click: loadAll">Load</button>
+          <button class="primary" data-bind="click: collectAll">Collect</button>
+          <button data-bind="click: addEmptyGroup">Add empty group</button>
+          <button data-bind="click: addEmptyItem">Add empty item</button>
+        </div>
+        <div class="footer-note">
+          When a step is satisfied, that cell turns green; the next required cell turns red.
+        </div>
+      </div>
+    </details>
+
+    <div data-bind="if: groups().length === 0" class="empty-note">No items loaded yet.</div>
+
+    <!-- Groups -->
+    <div data-bind="foreach: sortedGroups">
+      <section class="group" data-bind="attr:{'data-group-id': id}">
+        <div class="group-header">
+          <div class="group-title" data-bind="text: title"></div>
+          <div><button data-bind="click: $parent.addItemInGroup">Add item in this group</button></div>
+        </div>
+
+        <!-- Table headers -->
+        <div class="table-headers" data-bind="foreach: paddedHeaders">
+          <div class="table-header" data-bind="text: $data"></div>
+        </div>
+
+        <!-- Rows -->
+        <div class="rows" data-bind="foreach: items">
+          <div class="row">
+            <!-- name -->
+            <input class="name"
+                   type="text"
+                   maxlength="20"
+                   data-bind="value: cells()[0].value,
+                              css: cells()[0].cssClass,
+                              valueUpdate: 'input'"/>
+
+            <!-- groupId -->
+            <input type="text"
+                   maxlength="20"
+                   data-bind="value: cells()[1].value,
+                              css: cells()[1].cssClass,
+                              event:{ change: onGroupChange }"/>
+
+            <!-- data cells 2..9 (each with + button) -->
+            <!-- ko foreach: { data: cells().slice(2), as: 'c' } -->
+              <div class="num-cell">
+                <input type="text"
+                       inputmode="numeric"
+                       maxlength="4"
+                       data-bind="value: c.value,
+                                  css: c.cssClass,
+                                  valueUpdate: 'input',
+                                  event:{ input: $parent.sanitizeNumeric }"/>
+                <div class="inc-btn"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Increase by 1"
+                     data-bind="click: function(){ $parent.incCell(c) },
+                                event: { keydown: function(_,e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); $parent.incCell(c);} } }">+</div>
+              </div>
+            <!-- /ko -->
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="footer-note">Tip: change the group id (2nd textbox) to move an item to another group.</p>
+  </div>
+
+  <script src="./knockout-min.js"></script>
+  <script>
+    (function(){
+      const MAX_COL = 10;
+
+      // ------------ Utilities ------------
+      const trim = s => (s ?? "").toString().trim();
+      const normOp = op => {
+        op = (op||"").replace(/\s+/g,"");
+        if (op === "=>") return ">=";
+        if (op === "=<") return "<=";
+        return op;
+      };
+      const toNum = v => {
+        if (v === null || v === undefined || trim(v) === "") return NaN;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : NaN;
+      };
+      const isNumber = t => (typeof t === "number") || (/^-?\d+$/.test(String(t).trim()));
+      const clampInt = (n, min, max) => Math.min(max, Math.max(min, n|0));
+      const compare = (left, op, right) => {
+        const a = toNum(left), b = toNum(right);
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+        switch(op){
+          case "=": return a === b;
+          case ">": return a > b;
+          case "<": return a < b;
+          case ">=": return a >= b;
+          case "<=": return a <= b;
+          default: return false;
+        }
+      };
+
+      // ------------ Parsing ------------
+      function parseConditionSteps(text){
+        const map = new Map(); // groupId -> [{index,op,value}]
+        let cur = null;
+        for (const raw of (text||"").split(/\r?\n/)){
+          const line = trim(raw);
+          if (!line) continue;
+          const sec = line.match(/^==+=([A-Za-z0-9_\u3000-\u9FFF]+)$/);
+          if (sec){ cur = sec[1]; if (!map.has(cur)) map.set(cur, []); continue; }
+          if (cur === null) continue;
+          const m = line.match(/^([A-Za-z0-9_\u3000-\u9FFF]+)\s*(<=|>=|=<|=>|=|<|>)\s*(-?\d+(?:\.\d+)?)$/);
+          if (m){
+            const idx = m[1];
+            const op = normOp(m[2]);
+            const val = Number(m[3]);
+            map.get(cur).push({ index: idx, op, value: val });
+          }
+        }
+        return map;
+      }
+
+      function parseGroupHeadersV2(text){
+        const res = new Map();
+        const blocks = (text||"").trim().split("===").filter(Boolean);
+        for (const block of blocks){
+          const lines = block.split(/\r?\n/).filter(Boolean);
+          if (lines.length === 0) continue;
+          const idParts = lines[0].trim().split("-").filter(Boolean);
+          if (idParts.length !== 2) continue;
+          const gid = idParts[0];
+          const title = idParts[1];
+          const headers = lines.slice(1);
+          res.set(gid, { title, headers });
+        }
+        return res;
+      }
+
+      function parseItems(text){
+        const rows = [];
+        for (const raw of (text||"").split(/\r?\n/)){
+          if (!trim(raw)) continue;
+          const parts = raw.split(",").map(s=>trim(s));
+          while (parts.length < MAX_COL) parts.push("");
+          rows.push(parts.slice(0, MAX_COL));
+        }
+        return rows;
+      }
+
+      function splitSections(text){
+        const chunks = (text||"").trim().split("※※※").filter(Boolean).map(s=>s.trim());
+        const dict = {};
+        for (const chunk of chunks){
+          const lines = chunk.split(/\r?\n/);
+          if (lines.length > 1){
+            const key = trim(lines[0]);
+            dict[key] = lines.slice(1).join("\r\n");
+          }
+        }
+        return dict;
+      }
+
+      // ------------ Models ------------
+      function Cell(val){
+        this.value = ko.observable(val ?? "");
+        this.cssClass = ko.observable("");
+      }
+
+      function Item(values, parentVm){
+        const self = this;
+        self.vm = parentVm;
+        const arr = Array.isArray(values) ? values.slice(0, MAX_COL) : [];
+        while (arr.length < MAX_COL) arr.push("");
+        self.cells = ko.observableArray(arr.map(v => new Cell(v)));
+
+        // Increment a numeric cell by +1 (for columns 2..9 only in UI)
+        self.incCell = function(cell){
+          const raw = cell.value();
+          let n = Number.isFinite(+raw) ? (+raw|0) : 0;
+          n = clampInt(n + 1, -999, 999); // keep within 3-digit (with optional minus)
+          cell.value(String(n));
+          self.evaluate();
+        };
+
+        // Sanitize numeric inputs for cells[2..9]
+        self.sanitizeNumeric = function(_, e){
+          const inp = e.target;
+          const only = inp.value.replace(/[^0-9-]/g,"");
+          const neg = only.startsWith("-"); const body = only.slice(neg?1:0);
+          const capped = (neg? "-" : "") + body.slice(0,3);
+          if (capped !== inp.value) inp.value = capped;
+          // push into observable
+          const idx = self.indexOfDomInput(inp);
+          if (idx >= 0) self.cells()[idx].value(inp.value);
+          self.evaluate();
+        };
+
+        // when group cell (index 1) changes, move item across groups
+        self.onGroupChange = function(){
+          const target = String(self.cells()[1].value() || "");
+          self.vm.moveItemToGroup(self, target);
+        };
+
+        // For input event mapping
+        self.indexOfDomInput = function(inputEl){
+          const row = inputEl.closest(".row");
+          if (!row) return -1;
+          const inputs = Array.from(row.querySelectorAll("input"));
+          return inputs.indexOf(inputEl);
+        };
+
+        // Re-evaluate step classes
+        self.evaluate = function(){
+          const gid = String(self.cells()[1].value() || "");
+          const steps = self.vm.conditionSteps.get(gid) || [];
+          const hdrInfo = self.vm.groupHeaders.get(gid) || { headers: [] };
+          const headers = hdrInfo.headers || [];
+
+          // clear
+          self.cells().forEach(c => c.cssClass(""));
+
+          for (let s = 0; s < steps.length; s++){
+            const { index, op, value } = steps[s];
+            let idx = -1;
+            if (!isNumber(index)){
+              idx = headers.indexOf(String(index).trim());
+            } else {
+              idx = Number(index);
+            }
+            if (idx < 0 || idx > 9) continue;
+
+            const cell = self.cells()[idx];
+            const ok = compare(cell.value(), op, value);
+            if (ok){
+              cell.cssClass("ok");
+            } else {
+              cell.cssClass("pending");
+              break;
+            }
+          }
+        };
+
+        // reactive re-evaluation
+        self.cells().forEach(c => c.value.subscribe(self.evaluate));
+      }
+
+      function Group(id, title, headers){
+        const self = this;
+        self.id = String(id);
+        self.title = ko.observable(title || ("Group " + self.id));
+        self.headers = ko.observableArray(headers || []);
+        self.items = ko.observableArray([]);
+
+        self.paddedHeaders = ko.pureComputed(function(){
+          const h = self.headers().slice();
+          while (h.length < MAX_COL) h.push("");
+          return h;
+        });
+      }
+
+      // ------------ ViewModel ------------
+      function AppVM(){
+        const self = this;
+
+        self.condInput = ko.observable('');
+        self.headerInput = ko.observable('');
+        self.itemsInput = ko.observable('');
+
+        self.conditionSteps = new Map();
+        self.groupHeaders  = new Map();
+
+        self.groups = ko.observableArray([]);
+
+        self.sortedGroups = ko.pureComputed(function(){
+          const arr = self.groups().slice();
+          arr.sort((a,b)=>{
+            const an = +a.id, bn = +b.id;
+            if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+            return String(a.id).localeCompare(String(b.id));
+          });
+          return arr;
+        });
+
+        self.getGroup = function(gid){
+          gid = String(gid);
+          let g = self.groups().find(gr => gr.id === gid);
+          if (!g){
+            const hdr = self.groupHeaders.get(gid) || { title: ("Group " + gid), headers: [] };
+            g = new Group(gid, hdr.title, hdr.headers);
+            self.groups.push(g);
+          } else {
+            const hdr = self.groupHeaders.get(gid);
+            if (hdr){ g.title(hdr.title); g.headers(hdr.headers); }
+          }
+          return g;
+        };
+
+        self.moveItemToGroup = function(item, targetGid){
+          targetGid = String(targetGid || "");
+          const current = self.groups().find(g => g.items().includes(item));
+          if (current){ current.items.remove(item); }
+          const g = self.getGroup(targetGid);
+          g.items.push(item);
+          item.evaluate();
+        };
+
+        self.addItemInGroup = function(group){
+          const it = new Item(["", String(group.id), "", "", "", "", "", "", "", ""], self);
+          group.items.push(it);
+          it.evaluate();
+        };
+
+        self.addEmptyGroup = function(){
+          let gid = 0;
+          const existing = new Set(self.groups().map(g => g.id).concat(Array.from(self.groupHeaders.keys())));
+          while (existing.has(String(gid))) gid++;
+          self.getGroup(gid);
+        };
+
+        self.addEmptyItem = function(){
+          const g = self.sortedGroups()[0] || self.getGroup(0);
+          self.addItemInGroup(g);
+        };
+
+        self.collectAll = async function(){
+          const rows = [];
+          self.sortedGroups().forEach(g => {
+            g.items().forEach(item => {
+              rows.push(item.cells().map(c => c.value()).join(','));
+            });
+          });
+          const output = rows.join("\r\n");
+          self.itemsInput(output);
+          try { await navigator.clipboard.writeText(output); } catch(e) {}
+        };
+
+        self.loadAll = function(){
+          let condText = self.condInput();
+          let headerText = self.headerInput();
+          let itemsText = self.itemsInput();
+          const packed = splitSections(self.itemsInput());
+          if (packed["Condition steps"]) condText = packed["Condition steps"];
+          if (packed["Group headers"])   headerText = packed["Group headers"];
+          if (packed["Items"])           itemsText = packed["Items"];
+
+          self.conditionSteps = parseConditionSteps(condText);
+          self.groupHeaders   = parseGroupHeadersV2(headerText);
+
+          self.groups.removeAll();
+          for (const [gid, info] of self.groupHeaders.entries()){
+            self.groups.push(new Group(gid, info.title, info.headers));
+          }
+
+          const rows = parseItems(itemsText);
+          if (rows.length === 0) return;
+
+          rows.forEach(arr => {
+            const gid = String(arr[1] || "");
+            const g = self.getGroup(gid);
+            const it = new Item(arr, self);
+            g.items.push(it);
+            it.evaluate();
+          });
+        };
+      }
+
+      window.vm = new AppVM();
+      ko.applyBindings({ vm: window.vm });
+    })();
+  </script>
+</body>
+</html>
