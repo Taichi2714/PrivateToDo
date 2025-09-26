@@ -262,12 +262,36 @@ v2"></textarea>
         const rows = [];
         for (const raw of (text||"").split(/\r?\n/)){
           if (!trim(raw)) continue;
-          const parts = raw.split(",").map(s=>trim(s));
+          const parts = specialSplit(trim(raw));
           while (parts.length < MAX_COL) parts.push("");
           rows.push(parts.slice(0, MAX_COL));
         }
         return rows;
       }
+	  
+	  function specialSplit(text) {
+		  const parts = text.split(",");
+
+		  let result = [];
+		  if (parts.length === 3) {
+			// Case: exactly 3 elements → pad last one to 16 chars, split by 2
+			const fixed = parts[2].padEnd(16, "0").slice(0, 16); // ensure length 16
+			const subparts = [];
+			for (let i = 0; i < fixed.length; i += 2) {
+			  subparts.push(fixed.slice(i, i + 2));
+			}
+			result = [parts[0], parts[1], ...subparts];
+		  } else {
+			// Case: >3 elements → split normally, then pad with "0" until 10
+			result = [...parts];
+			while (result.length < MAX_COL) {
+			  result.push("");
+			}
+		  }
+
+		  // trim each element
+		  return result.map(x => x.trim());
+	  }
 
       function splitSections(text){
         const chunks = (text||"").trim().split("※※※").filter(Boolean).map(s=>s.trim());
